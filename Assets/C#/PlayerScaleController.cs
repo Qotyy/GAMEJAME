@@ -50,6 +50,8 @@ public class PlayerScaleController : MonoBehaviour
         Move();
         HandleScaleInput();
         AnimateRun();
+
+        survivalTimer += Time.deltaTime;
     }
 
     private void Move()
@@ -139,16 +141,29 @@ public class PlayerScaleController : MonoBehaviour
         // 2. Проверка на столкновение с препятствием (Смерть)
         if (collision.gameObject.CompareTag(obstacleTag))
         {
-            Die();
+            GameOver();
         }
     }
 
     // Архитектурно выносим смерть в отдельный метод. 
     // Позже сюда можно будет добавить партиклы взрыва или вызов GameManager.
-    private void Die()
+    private float survivalTimer = 0f;
+
+    public GameOverScript GameOverScreen;
+
+
+
+    public void GameOver()
     {
-        Debug.Log("Смерть! Перезагрузка сцены...");
-        // Перезагружаем текущую сцену
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        
+        GameOverScreen.Setup(survivalTimer);
+
+        Destroy(gameObject);
     }
+    /*  private void Die()
+      {
+          Debug.Log("Смерть! Перезагрузка сцены...");
+          // Перезагружаем текущую сцену
+          SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+      }*/
 }
