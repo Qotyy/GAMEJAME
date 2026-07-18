@@ -5,6 +5,14 @@ using UnityEngine.SceneManagement;
 
 public class PlayerScaleController : MonoBehaviour
 {
+
+    [Header("Настройки смерти")]
+    public float knockbackForce = 15f; // Сила отлета
+    public float restartDelay = 1.5f;  // Время до перезагрузки сцены
+
+    private bool isDead = false;
+    private Rigidbody rb;
+
     [Header("Движение")]
     public float forwardSpeed = 10f;
     public float lateralSpeed = 7f;
@@ -36,6 +44,8 @@ public class PlayerScaleController : MonoBehaviour
 
     private void Start()
     {
+        rb = GetComponent<Rigidbody>(); // Получаем компонент
+
         currentTargetScale = baseScale;
         transform.localScale = baseScale;
 
@@ -47,11 +57,11 @@ public class PlayerScaleController : MonoBehaviour
 
     private void Update()
     {
+        if (isDead) return; // Блокируем всё, если персонаж умер
+
         Move();
         HandleScaleInput();
         AnimateRun();
-
-        survivalTimer += Time.deltaTime;
     }
 
     private void Move()
@@ -155,7 +165,7 @@ public class PlayerScaleController : MonoBehaviour
 
     public void GameOver()
     {
-        
+
         GameOverScreen.Setup(survivalTimer);
 
         Destroy(gameObject);
