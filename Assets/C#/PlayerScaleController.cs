@@ -1,19 +1,26 @@
 using System.Collections;
 using UnityEngine;
 using System;
+using UnityEngine.SceneManagement;
 
 public class PlayerScaleController : MonoBehaviour
 {
     [Header("Движение")]
     public float forwardSpeed = 10f;
-    public float lateralSpeed = 7f; // Скорость смещения по бокам
+    public float lateralSpeed = 7f;
+    public string obstacleTag = "Wall";
 
-    [Header("Настройки анимации")]
+    [Header("Процедурная анимация (Бег)")]
+    public Transform visualModel; // Перетяни сюда дочерний объект с 3D-моделью
+    public float bobFrequency = 10f; // Частота шагов (скорость подпрыгиваний)
+    public float bobAmplitude = 0.1f; // Высота подпрыгивания при беге
+
+    [Header("Настройки анимации масштаба")]
     public float scaleDuration = 0.15f;
 
     [Header("Параметры анизотропного масштаба")]
     public Vector3 baseScale = Vector3.one;
-    public Vector3 squeezeWidthScale = new Vector3(0.3f, 1.5f, 1f);
+    public Vector3 squeezeWidthScale = new Vector3(0.3f, 1.3f, 1f);
     public Vector3 squeezeHeightScale = new Vector3(1.3f, 0.3f, 1f);
     public Vector3 breakWallsScale = new Vector3(1.4f, 1.4f, 1.4f);
 
@@ -24,42 +31,41 @@ public class PlayerScaleController : MonoBehaviour
 
     private bool canBreakWalls = false;
     private Coroutine scaleCoroutine;
-
-    // Кэш текущего целевого состояния, чтобы не спамить корутины каждый кадр
     private Vector3 currentTargetScale;
+    private float defaultVisualY; // Исходная высота модели
 
     private void Start()
     {
         currentTargetScale = baseScale;
         transform.localScale = baseScale;
+
+        if (visualModel != null)
+        {
+            defaultVisualY = visualModel.localPosition.y;
+        }
     }
 
     private void Update()
     {
         Move();
         HandleScaleInput();
+        AnimateRun();
     }
 
     private void Move()
     {
-        // Вектор движения вперед
         Vector3 forwardMove = Vector3.forward * forwardSpeed * Time.deltaTime;
-
-        // Вектор движения в стороны (опрашивает A/D или стрелки влево/вправо)
         float horizontalInput = Input.GetAxis("Horizontal");
         Vector3 lateralMove = Vector3.right * horizontalInput * lateralSpeed * Time.deltaTime;
 
-        // Складываем векторы и применяем
         transform.Translate(forwardMove + lateralMove);
     }
 
     private void HandleScaleInput()
     {
-        // По умолчанию предполагаем, что кнопки отпущены (базовый масштаб)
         Vector3 newTargetScale = baseScale;
         bool newCanBreakWalls = false;
 
-        // Приоритет кнопок через else if. Используем GetKey (удержание), а не GetKeyDown
         if (Input.GetKey(KeyCode.Alpha1))
         {
             newTargetScale = squeezeWidthScale;
@@ -74,13 +80,24 @@ public class PlayerScaleController : MonoBehaviour
             newCanBreakWalls = true;
         }
 
-        // Запускаем перестроение формы ТОЛЬКО если целевой масштаб изменился
         if (newTargetScale != currentTargetScale)
         {
             currentTargetScale = newTargetScale;
             canBreakWalls = newCanBreakWalls;
             ChangeScaleSmooth(currentTargetScale);
         }
+    }
+
+    // Алгоритм математической анимации бега
+    private void AnimateRun()
+    {
+        if (visualModel == null) return;
+
+        // Mathf.Abs(Sin) создает эффект дуги. Объект "отскакивает" только вверх от базовой точки, имитируя шаги.
+        float currentY = defaultVisualY + Mathf.Abs(Mathf.Sin(Time.time * bobFrequency)) * bobAmplitude;
+
+        // Применяем локальную позицию только к визуальной модели
+        visualModel.localPosition = new Vector3(visualModel.localPosition.x, currentY, visualModel.localPosition.z);
     }
 
     private void ChangeScaleSmooth(Vector3 targetScale)
@@ -112,9 +129,26 @@ public class PlayerScaleController : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
+        // 1. Проверка на пробитие деревянной стены
         if (canBreakWalls && collision.gameObject.CompareTag(destructibleWallTag))
         {
             Destroy(collision.gameObject);
+            return; // Выходим, чтобы не проверять другие столкновения
         }
+
+        // 2. Проверка на столкновение с препятствием (Смерть)
+        if (collision.gameObject.CompareTag(obstacleTag))
+        {
+            Die();
+        }
+    }
+
+    // Архитектурно выносим смерть в отдельный метод. 
+    // Позже сюда можно будет добавить партиклы взрыва или вызов GameManager.
+    private void Die()
+    {
+        Debug.Log("Смерть! Перезагрузка сцены...");
+        // Перезагружаем текущую сцену
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }
