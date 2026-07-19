@@ -55,6 +55,8 @@ public class PlayerScaleController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         defaultSpeed = forwardSpeed; // Сохраняем скорость для сброса банана
 
+        
+
         currentTargetScale = baseScale;
         transform.localScale = baseScale;
 
@@ -74,6 +76,8 @@ public class PlayerScaleController : MonoBehaviour
         Move();
         HandleScaleInput();
         AnimateRun();
+
+        survivalTimer += Time.deltaTime;
     }
 
     private void Move()
@@ -175,6 +179,11 @@ public class PlayerScaleController : MonoBehaviour
         }
     }
 
+    public AudioClip deathSoundClip;
+
+    private AudioSource audioSource;
+    
+
     private IEnumerator BananaDebuffRoutine()
     {
         isSlowed = true;
@@ -209,6 +218,11 @@ public class PlayerScaleController : MonoBehaviour
     {
         if (isDead) return;
         isDead = true;
+        
+        if ( deathSoundClip != null)
+        {
+            AudioSource.PlayClipAtPoint(deathSoundClip, transform.position);
+        }
 
         // Физическое отталкивание
         if (rb != null)
@@ -232,6 +246,10 @@ public class PlayerScaleController : MonoBehaviour
             GameOverScreen.Setup(survivalTimer);
         }
 
+       
+
+        
         Destroy(gameObject);
     }
 }
+
