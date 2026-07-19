@@ -5,13 +5,21 @@ using UnityEngine.SceneManagement;
 
 public class PlayerScaleController : MonoBehaviour
 {
+    [Header("Настройки банана")]
+    public string bananaTag = "Banana";
+    public Renderer modelRenderer;
+
+    private bool isSlowed = false;
+    private float defaultSpeed;
 
     [Header("Настройки смерти")]
-    public float knockbackForce = 15f; // Сила отлета
-    public float restartDelay = 1.5f;  // Время до перезагрузки сцены
+    public float knockbackForce = 15f;
+    public float restartDelay = 1.5f;
+    public GameOverScript GameOverScreen;
 
     private bool isDead = false;
     private Rigidbody rb;
+    private float survivalTimer = 0f;
 
     [Header("Движение")]
     public float forwardSpeed = 10f;
@@ -19,9 +27,9 @@ public class PlayerScaleController : MonoBehaviour
     public string obstacleTag = "Wall";
 
     [Header("Процедурная анимация (Бег)")]
-    public Transform visualModel; // Перетяни сюда дочерний объект с 3D-моделью
-    public float bobFrequency = 10f; // Частота шагов (скорость подпрыгиваний)
-    public float bobAmplitude = 0.1f; // Высота подпрыгивания при беге
+    public Transform visualModel;
+    public float bobFrequency = 10f;
+    public float bobAmplitude = 0.1f;
 
     [Header("Настройки анимации масштаба")]
     public float scaleDuration = 0.15f;
@@ -40,11 +48,12 @@ public class PlayerScaleController : MonoBehaviour
     private bool canBreakWalls = false;
     private Coroutine scaleCoroutine;
     private Vector3 currentTargetScale;
-    private float defaultVisualY; // Исходная высота модели
+    private float defaultVisualY;
 
     private void Start()
     {
-        rb = GetComponent<Rigidbody>(); // Получаем компонент
+        rb = GetComponent<Rigidbody>();
+        defaultSpeed = forwardSpeed; // Сохраняем скорость для сброса банана
 
         currentTargetScale = baseScale;
         transform.localScale = baseScale;
@@ -57,7 +66,10 @@ public class PlayerScaleController : MonoBehaviour
 
     private void Update()
     {
-        if (isDead) return; // Блокируем всё, если персонаж умер
+        if (isDead) return;
+
+        // Считаем время жизни, пока игрок жив
+        survivalTimer += Time.deltaTime;
 
         Move();
         HandleScaleInput();
@@ -100,15 +112,11 @@ public class PlayerScaleController : MonoBehaviour
         }
     }
 
-    // Алгоритм математической анимации бега
     private void AnimateRun()
     {
         if (visualModel == null) return;
 
-        // Mathf.Abs(Sin) создает эффект дуги. Объект "отскакивает" только вверх от базовой точки, имитируя шаги.
         float currentY = defaultVisualY + Mathf.Abs(Mathf.Sin(Time.time * bobFrequency)) * bobAmplitude;
-
-        // Применяем локальную позицию только к визуальной модели
         visualModel.localPosition = new Vector3(visualModel.localPosition.x, currentY, visualModel.localPosition.z);
     }
 
@@ -141,39 +149,89 @@ public class PlayerScaleController : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        // 1. Проверка на пробитие деревянной стены
         if (canBreakWalls && collision.gameObject.CompareTag(destructibleWallTag))
         {
             Destroy(collision.gameObject);
-            return; // Выходим, чтобы не проверять другие столкновения
+            return;
         }
 
-        // 2. Проверка на столкновение с препятствием (Смерть)
         if (collision.gameObject.CompareTag(obstacleTag))
         {
             GameOver();
         }
     }
 
-    // Архитектурно выносим смерть в отдельный метод. 
-    // Позже сюда можно будет добавить партиклы взрыва или вызов GameManager.
-    private float survivalTimer = 0f;
+    // --- ЛОГИКА БАНАНА ---
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag(bananaTag))
+        {
+            Destroy(other.gameObject);
 
-    public GameOverScript GameOverScreen;
+            if (!isSlowed)
+            {
+                StartCoroutine(BananaDebuffRoutine());
+            }
+        }
+    }
 
+    private IEnumerator BananaDebuffRoutine()
+    {
+        isSlowed = true;
+        forwardSpeed = defaultSpeed * 0.55f;
 
+        float duration = 2f;
+        float blinkInterval = 0.15f;
+        float timePassed = 0f;
 
+        while (timePassed < duration)
+        {
+            if (modelRenderer != null)
+            {
+                modelRenderer.enabled = !modelRenderer.enabled;
+            }
+
+            yield return new WaitForSeconds(blinkInterval);
+            timePassed += blinkInterval;
+        }
+
+        if (modelRenderer != null)
+        {
+            modelRenderer.enabled = true;
+        }
+
+        forwardSpeed = defaultSpeed;
+        isSlowed = false;
+    }
+
+    // --- ЛОГИКА СМЕРТИ ---
     public void GameOver()
     {
+        if (isDead) return;
+        isDead = true;
 
-        GameOverScreen.Setup(survivalTimer);
+        // Физическое отталкивание
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            Vector3 knockbackDirection = new Vector3(0f, 1f, -1.5f).normalized;
+            rb.AddForce(knockbackDirection * knockbackForce, ForceMode.Impulse);
+        }
+
+        // Запускаем корутину ожидания экрана
+        StartCoroutine(DeathRoutine());
+    }
+
+    private IEnumerator DeathRoutine()
+    {
+        // Ждем пока свинка красиво отлетит, прежде чем показывать UI и удалять объект
+        yield return new WaitForSeconds(restartDelay);
+
+        if (GameOverScreen != null)
+        {
+            GameOverScreen.Setup(survivalTimer);
+        }
 
         Destroy(gameObject);
     }
-    /*  private void Die()
-      {
-          Debug.Log("Смерть! Перезагрузка сцены...");
-          // Перезагружаем текущую сцену
-          SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-      }*/
 }
