@@ -46,6 +46,8 @@ public class PlayerScaleController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>(); // Получаем компонент
 
+        
+
         currentTargetScale = baseScale;
         transform.localScale = baseScale;
 
@@ -62,6 +64,8 @@ public class PlayerScaleController : MonoBehaviour
         Move();
         HandleScaleInput();
         AnimateRun();
+
+        survivalTimer += Time.deltaTime;
     }
 
     private void Move()
@@ -161,19 +165,32 @@ public class PlayerScaleController : MonoBehaviour
 
     public GameOverScript GameOverScreen;
 
+    public AudioClip deathSoundClip;
+
+    private AudioSource audioSource;
+    
 
 
     public void GameOver()
     {
+        
+        if ( deathSoundClip != null)
+        {
+            AudioSource.PlayClipAtPoint(deathSoundClip, transform.position);
+        }
 
         GameOverScreen.Setup(survivalTimer);
 
+       
+
+        
         Destroy(gameObject);
     }
+}
     /*  private void Die()
       {
           Debug.Log("Смерть! Перезагрузка сцены...");
           // Перезагружаем текущую сцену
           SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
       }*/
-}
+
