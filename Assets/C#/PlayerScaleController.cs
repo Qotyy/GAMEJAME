@@ -5,6 +5,13 @@ using UnityEngine.SceneManagement;
 
 public class PlayerScaleController : MonoBehaviour
 {
+    [Header("Настройки монет-чекпоинтов")]
+    public string coinTag = "Coin"; // Не забудь создать этот тег в Unity!
+    public AudioClip oinkSound;
+    private Vector3 initialSpawnPosition;
+    private Vector3 coinSpawnPosition;
+    private bool hasCoinCheckpoint = false;
+
     [Header("Настройки банана")]
     public string bananaTag = "Banana";
     public Renderer modelRenderer;
@@ -55,7 +62,7 @@ public class PlayerScaleController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         defaultSpeed = forwardSpeed; // Сохраняем скорость для сброса банана
 
-        
+        initialSpawnPosition = transform.position;
 
         currentTargetScale = baseScale;
         transform.localScale = baseScale;
@@ -176,6 +183,22 @@ public class PlayerScaleController : MonoBehaviour
                 StartCoroutine(BananaDebuffRoutine());
             }
         }
+        if (other.CompareTag(coinTag))
+        {
+            // Воспроизводим звук хрюканья в позиции монетки
+            if (oinkSound != null)
+            {
+                AudioSource.PlayClipAtPoint(oinkSound, other.transform.position);
+            }
+
+            Destroy(other.gameObject);
+
+            coinSpawnPosition = other.transform.position;
+            hasCoinCheckpoint = true;
+            Debug.Log("Чекпоинт установлен на монеточке!");
+        }
+
+
     }
 
     public AudioClip deathSoundClip;
@@ -237,18 +260,51 @@ public class PlayerScaleController : MonoBehaviour
 
     private IEnumerator DeathRoutine()
     {
-        // Ждем пока свинка красиво отлетит, прежде чем показывать UI и удалять объект
         yield return new WaitForSeconds(restartDelay);
 
-        if (GameOverScreen != null)
+        // Если у нас была монетка — возрождаемся на ней и сжигаем её
+        if (hasCoinCheckpoint)
         {
-            GameOverScreen.Setup(survivalTimer);
+            transform.position = coinSpawnPosition;
+            hasCoinCheckpoint = false; // Сгорает, второй раз сюда не пустит
+            Debug.Log("Возрождение на монетке. Чекпоинт использован!");
+
+            // Восстанавливаем игрока для новой попытки
+            ResetPlayerStatus();
         }
+        else
+        {
+            // Если монетки нет или она уже сгорела — показываем экран GameOver или кидаем в самое начало
+            if (GameOverScreen != null)
+            {
+                GameOverScreen.Setup(survivalTimer);
+            }
 
-       
+            // Если хочешь вместо экрана GameOver просто телепортировать в начало без перезагрузки сцены, 
+            // раскомментируй эти две строчки, а Destroy(gameObject) — удали:
+            // transform.position = initialSpawnPosition;
+            // ResetPlayerStatus();
 
-        
-        Destroy(gameObject);
+            Destroy(gameObject);
+        }
+    }
+
+    // Вспомогательный метод, чтобы оживить свинку после телепортации
+    private void ResetPlayerStatus()
+    {
+        isDead = false;
+
+        // Полностью сбрасываем вращение объекта в дефолтное состояние (0, 0, 0)
+        transform.rotation = Quaternion.identity;
+
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero; // Сбрасываем вращательный импульс физики
+
+            // На всякий случай полностью выпрямляем Rigidbody, чтобы физический движок не думал, что объект повернут
+            rb.rotation = Quaternion.identity;
+        }
     }
 }
 
