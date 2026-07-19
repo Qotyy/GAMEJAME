@@ -16513,6 +16513,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: '::'
   timeText: {fileID: 1759723470}
+  backgroundMusic: {fileID: 0}
+  clickSoundClip: {fileID: 0}
 --- !u!114 &1243076480
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -20015,6 +20017,7 @@ MonoBehaviour:
   squeezeHeightScale: {x: 1.3, y: 0.3, z: 1}
   breakWallsScale: {x: 1.4, y: 1.4, z: 1.4}
   destructibleWallTag: BreakableWall
+  deathSoundClip: {fileID: 0}
 --- !u!65 &1488162593
 BoxCollider:
   m_ObjectHideFlags: 0

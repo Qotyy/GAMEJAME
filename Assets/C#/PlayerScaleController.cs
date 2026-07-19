@@ -77,7 +77,6 @@ public class PlayerScaleController : MonoBehaviour
         HandleScaleInput();
         AnimateRun();
 
-        survivalTimer += Time.deltaTime;
     }
 
     private void Move()
